@@ -495,7 +495,14 @@ textarea{min-height:70px;resize:vertical;line-height:1.65;}
     </div>
     <div class="chips" id="p2ch"></div>
     <div class="div"></div>
-    <button class="btn bg" onclick="p2S()">&#x628;&#x62D;&#x62B; &#x628;&#x627;&#x644;&#x62D;&#x631;&#x648;&#x641;</button>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <button class="btn bg" onclick="p2S()">&#x628;&#x62D;&#x62B; &#x628;&#x627;&#x644;&#x62D;&#x631;&#x648;&#x641;</button>
+      <label class="sw" title="كل حرف مطلوب يظهر مرة واحدة فقط في الآية">
+        <input type="checkbox" id="p2unique">
+        <span class="sw-tr"><span class="sw-th"></span></span>
+      </label>
+      <span style="font-size:.82rem;color:var(--td);">الحروف <strong style="color:var(--gl);">غير مكررة</strong> في الآية</span>
+    </div>
     <span style="font-size:.76rem;color:var(--td);margin-right:10px;">&#x644;&#x644;&#x623;&#x646;&#x63A;&#x631;&#x627;&#x645;: &#x623;&#x636;&#x641; &#x627;&#x644;&#x62D;&#x631;&#x648;&#x641; &#x648;&#x627;&#x62E;&#x62A;&#x631; "&#x62D;&#x631;&#x648;&#x641; &#x645;&#x628;&#x639;&#x62B;&#x631;&#x629;" - &#x645;&#x62B;: &#x628; &#x633; &#x645; &#x627; &#x644; &#x644; &#x647; = &#x628;&#x633;&#x645; &#x627;&#x644;&#x644;&#x647;</span>
   </div>
   <div id="p2sb" style="display:none" class="sb">
@@ -1207,11 +1214,28 @@ function p1Rdr2(rs,re){
     // تمييز الحرف الأول والأخير
     var clean=sD(v.t);
     var hl='';
-    for(var ci=0;ci<v.t.length;ci++){
-      var ch=esc(v.t[ci]);
-      if(ci===0&&rs) hl+='<mark>'+ch+'</mark>';
-      else if(ci===v.t.length-1&&re) hl+='<mark>'+ch+'</mark>';
-      else hl+=ch;
+    var HL='<span style="color:#4dff88;font-weight:900;font-size:1.15em;text-shadow:0 0 8px rgba(50,220,100,.5);">';
+    // إيجاد أول وآخر حرف عربي أصلي (غير تشكيل)
+    var firstAr=-1, lastAr=-1;
+    var tx=v.t, txLen=tx.length;
+    for(var fi=0;fi<txLen;fi++){
+      var fcc=tx.charCodeAt(fi);
+      var fDiac=(fcc>=0x064B&&fcc<=0x065F)||fcc===0x0670;
+      if(fcc>=0x0600&&fcc<=0x06FF&&!fDiac){if(firstAr===-1)firstAr=fi; lastAr=fi;}
+    }
+    var wi=0;
+    while(wi<txLen){
+      var wcc=tx.charCodeAt(wi);
+      var wch=esc(tx[wi]);
+      if((wi===firstAr&&rs)||(wi===lastAr&&re)){
+        hl+=HL+wch;
+        var ni=wi+1;
+        while(ni<txLen){var nc=tx.charCodeAt(ni);if((nc>=0x064B&&nc<=0x065F)||nc===0x0670){hl+=esc(tx[ni]);ni++;}else break;}
+        hl+='</span>';
+        wi=ni;
+      } else {
+        hl+=wch; wi++;
+      }
     }
     return '<div class="rc" style="animation-delay:'+(i*30)+'ms">'
       +rHead(v.s,sn,v.a,v.i,'')
@@ -1322,8 +1346,22 @@ function p2S(){
       var s=sD(v.t).replace(/[^\u0600-\u06FF]/g,'');
       var sn='';for(var i=0;i<s.length;i++) sn+=uniChar(s[i]);
       var lsn=P2L.map(function(l){return uniChar(sD(l));});
-      if(mode==='all'){if(lsn.every(function(l){return sn.includes(l);})) res.push(v);}
-      else if(mode==='any'){if(lsn.some(function(l){return sn.includes(l);})) res.push(v);}
+      var unique=document.getElementById('p2unique')&&document.getElementById('p2unique').checked;
+        function countChar(str,ch){var c=0;for(var x=0;x<str.length;x++)if(str[x]===ch)c++;return c;}
+        function passUnique(sn,lsn){
+          // كل حرف مطلوب يجب أن يظهر مرة واحدة بالضبط
+          return lsn.every(function(l){ return countChar(sn,l)===1; });
+        }
+        if(mode==='all'){
+          var ok=lsn.every(function(l){return sn.includes(l);});
+          if(ok&&unique) ok=passUnique(sn,lsn);
+          if(ok) res.push(v);
+        }
+        else if(mode==='any'){
+          var ok=lsn.some(function(l){return sn.includes(l);});
+          if(ok&&unique) ok=passUnique(sn,lsn);
+          if(ok) res.push(v);
+        }
       else{
         var pg=(document.getElementById('p2gap')||{value:'999'}).value;
         var gap2=parseInt(pg)||999;
